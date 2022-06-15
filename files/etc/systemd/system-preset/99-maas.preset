@@ -1,0 +1,14 @@
+disable avahi-*
+disable grub-*
+disable isc-dhcp-*
+disable rsyslog.service
+disable dmesg.service
+disable nginx.service
+disable logrotate.timer
+disable named.service
+disable postgresql.service
+
+enable maas-*.service
+enable squid.service
+enable chrony.service
+enable bind9.service

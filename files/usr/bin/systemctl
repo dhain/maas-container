@@ -2135,12 +2135,12 @@ class Systemctl:
             if m.group(1) in env:
                 return env[m.group(1)]
             logg.debug("can not expand $%s", m.group(1))
-            return "" # empty string
+            return m.group(0)
         def get_env2(m):
             if m.group(1) in env:
                 return env[m.group(1)]
             logg.debug("can not expand ${%s}", m.group(1))
-            return "" # empty string
+            return m.group(0)
         cmd3 = re.sub("[$](\w+)", lambda m: get_env1(m), cmd2)
         newcmd = []
         for part in shlex.split(cmd3):

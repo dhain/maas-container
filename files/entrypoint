@@ -1,0 +1,28 @@
+#!/bin/sh -e
+# vim: ts=2 sw=2 expandtab
+
+PG_HOST=localhost
+PG_PORT=5432
+PG_USER=maas
+PG_PASSWORD=changeme
+PG_DATABASE=maasdb
+
+if ! [ -x .pgpass ]; then
+  printf "%s:%s:%s:%s:%s\n" "$PG_HOST" "$PG_PORT" "$PG_DATABASE" "$PG_USER" "$PG_PASSWORD" > .pgpass
+fi
+
+echo "Waiting for postgres server..."
+until psql -h "$PG_HOST" -U "$PG_USER" -w -d "$PG_DATABASE" -c "select 1" > /dev/null 2>&1; do
+  sleep 1
+done
+
+echo "Setting config..."
+maas-region local_config_set \
+  --database-host "$PG_HOST" --database-port "$PG_PORT" --database-name "$PG_DATABASE" \
+  --database-user "$PG_USER" --database-pass "$PG_PASSWORD"
+
+echo "Running dbupgrade..."
+maas-region dbupgrade
+
+echo "Starting services."
+exec /usr/bin/systemctl
