@@ -2,7 +2,6 @@
 # vim: ts=2 sw=2 expandtab
 
 MODE="${1:-${MODE:-region+rack}}"
-MAAS_URL=${MAAS_URL:-http://$(hostname):5240/MAAS}
 
 prep_region() {
   if [ "$MODE" = "region" ]; then
@@ -28,7 +27,7 @@ prep_region() {
 
   echo "Setting config..."
   maas-region local_config_set \
-    --maas-url "$MAAS_URL" --database-host "$PG_HOST" --database-port "$PG_PORT" \
+    ${MAAS_URL:+--maas-url "$MAAS_URL"} --database-host "$PG_HOST" --database-port "$PG_PORT" \
     --database-name "$PG_DATABASE" --database-user "$PG_USER" --database-pass "$PG_PASSWORD"
 
   echo "Running dbupgrade..."
@@ -43,6 +42,7 @@ prep_region() {
 }
 
 prep_rack() {
+  : ${MAAS_URL:?"MAAS_URL required but not set"}
   : ${MAAS_SECRET:?"MAAS_SECRET required but not set"}
   systemctl disable maas-regiond.service maas-proxy.service
   systemctl mask maas-regiond.service

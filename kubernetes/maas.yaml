@@ -32,3 +32,11 @@ spec:
           path: /MAAS/r/
         initialDelaySeconds: 5
         periodSeconds: 60
+      volumeMounts:
+        - name: proxy-cache
+          mountPath: /var/spool/maas-proxy
+  volumes:
+    - name: proxy-cache
+      hostPath:
+        path: /var/spool/maas-proxy
+        type: DirectoryOrCreate
