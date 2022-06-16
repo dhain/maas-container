@@ -1,0 +1,29 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rackd
+  labels:
+    app: rackd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rackd
+  template:
+    metadata:
+      labels:
+        app: rackd
+        component: rackd
+    spec:
+      hostNetwork: true
+      containers:
+        - name: rackd
+          image: ghcr.io/dhain/maas:3.1
+          imagePullPolicy: Always
+          args: ["rack"]
+          env:
+            - name: MAAS_URL
+              value: http://10.21.0.32:5240/MAAS
+            - name: MAAS_SECRET
+              value: 3deeea96d814204440afd5661b495199

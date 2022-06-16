@@ -1,28 +1,60 @@
 #!/bin/sh -e
 # vim: ts=2 sw=2 expandtab
 
-PG_HOST=localhost
-PG_PORT=5432
-PG_USER=maas
-PG_PASSWORD=changeme
-PG_DATABASE=maasdb
+MODE="${1:-${MODE:-region+rack}}"
+MAAS_URL=${MAAS_URL:-http://$(hostname):5240/MAAS}
 
-if ! [ -x .pgpass ]; then
-  printf "%s:%s:%s:%s:%s\n" "$PG_HOST" "$PG_PORT" "$PG_DATABASE" "$PG_USER" "$PG_PASSWORD" > .pgpass
-fi
+prep_region() {
+  if [ "$MODE" = "region" ]; then
+    systemctl disable maas-rackd.service maas-dhcpd.service maas-dhcpd6.service
+    systemctl mask maas-rackd.service maas-dhcpd.service maas-dhcpd6.service
+  fi
 
-echo "Waiting for postgres server..."
-until psql -h "$PG_HOST" -U "$PG_USER" -w -d "$PG_DATABASE" -c "select 1" > /dev/null 2>&1; do
-  sleep 1
-done
+  PG_HOST=${PG_HOST:-localhost}
+  PG_PORT=${PG_PORT:-5432}
+  PG_USER=${PG_USER:-maas}
+  PG_PASSWORD=${PG_PASSWORD:-changeme}
+  PG_DATABASE=${PG_DATABASE:-maasdb}
 
-echo "Setting config..."
-maas-region local_config_set \
-  --database-host "$PG_HOST" --database-port "$PG_PORT" --database-name "$PG_DATABASE" \
-  --database-user "$PG_USER" --database-pass "$PG_PASSWORD"
+  if ! [ -x "$HOME/.pgpass" ]; then
+    printf "%s:%s:%s:%s:%s\n" "$PG_HOST" "$PG_PORT" "$PG_DATABASE" "$PG_USER" "$PG_PASSWORD" > "$HOME/.pgpass"
+    chmod 0600 "$HOME/.pgpass"
+  fi
 
-echo "Running dbupgrade..."
-maas-region dbupgrade
+  echo "Waiting for postgres server..."
+  until psql -h "$PG_HOST" -U "$PG_USER" -w -d "$PG_DATABASE" -c "select 1" > /dev/null; do
+    sleep 5
+  done
+
+  echo "Setting config..."
+  maas-region local_config_set \
+    --maas-url "$MAAS_URL" --database-host "$PG_HOST" --database-port "$PG_PORT" \
+    --database-name "$PG_DATABASE" --database-user "$PG_USER" --database-pass "$PG_PASSWORD"
+
+  echo "Running dbupgrade..."
+  maas-region dbupgrade
+
+  if [ -n "$MAAS_ADMIN_USERNAME" ]; then
+    maas createadmin --username "$MAAS_ADMIN_USERNAME" \
+      --password "${MAAS_ADMIN_PASSWORD:?"MAAS_ADMIN_USERNAME set but not MAAS_ADMIN_PASSWORD"}" \
+      --email "${MAAS_ADMIN_EMAIL:?"MAAS_ADMIN_USERNAME set but not MAAS_ADMIN_EMAIL"}" \
+      ${MAAS_ADMIN_SSH_IMPORT:+--ssh-import "$MAAS_ADMIN_SSH_IMPORT"}
+  fi
+}
+
+prep_rack() {
+  : ${MAAS_SECRET:?"MAAS_SECRET required but not set"}
+  systemctl disable maas-regiond.service maas-proxy.service
+  systemctl mask maas-regiond.service
+
+  echo "Registering rack controller with region..."
+  maas-rack register --url "$MAAS_URL" --secret "$MAAS_SECRET"
+}
+
+case "$MODE" in
+  *region*) prep_region;;
+  rack) prep_rack;;
+esac
 
 echo "Starting services."
 exec /usr/bin/systemctl

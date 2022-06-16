@@ -1,0 +1,66 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: maas
+  labels:
+    app: regiond
+spec:
+  clusterIP: 10.21.0.32
+  selector:
+    app: regiond
+  ports:
+    - port: 5240
+      name: http
+    - port: 3128
+      name: proxy
+    - port: 53
+      protocol: UDP
+      name: dns-udp
+    - port: 53
+      name: dns-tcp
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: regiond
+  labels:
+    app: regiond
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: regiond
+  template:
+    metadata:
+      labels:
+        app: regiond
+        component: regiond
+    spec:
+      containers:
+        - name: maas
+          image: ghcr.io/dhain/maas:3.1
+          imagePullPolicy: Always
+          args: ["region"]
+          env:
+            - name: MAAS_URL
+              value: http://maas:5240/MAAS
+            - name: PG_HOST
+              value: postgres
+          ports:
+            - containerPort: 5240
+              name: http
+            - containerPort: 3128
+              name: proxy
+            - containerPort: 53
+              protocol: UDP
+              name: dns-udp
+            - containerPort: 53
+              name: dns-tcp
+          readinessProbe:
+            httpGet:
+              port: 5240
+              path: /MAAS/r/
+            initialDelaySeconds: 5
+            periodSeconds: 60

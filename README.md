@@ -4,11 +4,9 @@ Run Canonical's MAAS in a Container
 Quick Start
 -----------
 
-    kubectl run maas --image=ghcr.io/dhain/maas:3.1
-
-or
-
-    kubectl create -f maas.yaml
+    for component in postgres maas; do
+        kubectl create -f kubernetes/${component}.yaml
+    done
 
 Notes
 -----
